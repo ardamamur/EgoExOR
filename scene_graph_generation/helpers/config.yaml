@@ -1,0 +1,30 @@
+Config:
+  annotations:
+    object_vocab_size: 36
+    relation_vocab_size: 22
+    subject_vocab_size: 36
+  batch_size: 1
+  dataset_name: egoexor
+  dimensions:
+  - image_size:
+    - 336
+    - 336
+  - max_seq_len: 32
+  dropout: 0.2
+  egocentric_features:
+  - images
+  - gaze
+  - hand
+  exocentric_features:
+  - images
+  - audio
+  - point_cloud
+  nhead: 16
+  num_layers: 4
+  num_output_tokens: 576
+  projection_dim: 2048
+  sequence:
+    max_samples: null
+    max_triplet_length: 10
+    sequence_length: 1
+    stride: 1

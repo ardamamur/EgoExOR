@@ -1,0 +1,84 @@
+{
+    "dataset_name": "EgoExOR",
+    "split": "test",
+    "data_dir" : "/home/guests/shared/EgoExOR/data",
+    "is_multimodal" : true,
+    "hdf5_path": "egoexor.h5", 
+    "temporality": "",
+
+    "modalities": {
+        "ego_frames": {
+            "enabled": true,
+            "embed_in_prompt": false,
+            "description": "RGB frames from egocentric cameras excluding or_light and microscope"
+        },
+        "exo_frames": {
+            "enabled": true,
+            "embed_in_prompt": false,
+            "description": "RGB frames from exocentric cameras including : or_light, microscope, simstation and azure kinects"
+        },
+        "ultrasound":{
+            "enabled" : true,
+            "embed_in_prompt" : false,
+            "description" : "Ultrasound screen recordings"
+        },
+        "eye_gaze": {
+            "enabled": true,
+            "embed_in_prompt": false,
+            "description": "2D gaze coordinates with camera IDs"
+        },
+        "eye_gaze_depth": {
+            "enabled": true,
+            "embed_in_prompt": false,
+            "description": "Depth values for gaze points"
+        },
+        "hand_tracking": {
+            "enabled": true,
+            "embed_in_prompt": false,
+            "description": "Hand positions with validity masks"
+        },
+        "audio": {
+            "enabled": true,
+            "embed_in_prompt": false,
+            "description": "Audio features or snippets (currently limited)"
+        },
+        "point_cloud": {
+            "enabled": true,
+            "embed_in_prompt": false,
+            "description": "3D point cloud data"
+        }
+    },
+
+    "exo_sources": ["or_light", "microscope", "external_1", "external_2", "external_3", "external_4", "external_5", "simstation", "ultrasound"],
+
+    "ego_sources": ["head_surgeon", "assistant", "circulator", "anesthetist"],
+
+    "egocentric_features" : ["gaze", "gaze_depth", "hand"],
+    "exocentric_features" : ["point_cloud", "audio"],
+
+    "preprocessing": {
+        "n_permutations": 1,
+        "modality_dropout_prob": 0,
+        "temporal": {
+            "add_temporal": false,
+            "with_temporal_aug": false,
+            "drop_history": 0.5
+        },
+        "reduce_ratio" : 1
+    },
+
+    "output": {
+        "output_dir": "data/llava_samples",
+        "json_filename_template": "{split}_{n_perm}perm_{add_temp}temp_{with_temp_aug}tempaug_EgoExOR",
+        "token_freq_filename": "test_token_freqs_7b_{n_perm}perm_EgoExOR.json"
+    },
+
+
+    "misc": {
+        "sequence_length": 1,
+        "stride": 1,
+        "max_samples": null
+    }
+
+
+}
