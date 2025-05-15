@@ -60,7 +60,7 @@ merge_files(
 
 The dataset is available in two formats:
 
-- Individual Files: Hosted on the Hugging Face ([ardamamur/EgoExOR](https://huggingface.co/ardamamur/EgoExOR))repository for efficient storage and access.
+- Individual Files: Hosted on the Hugging Face ([ardamamur/EgoExOR](https://huggingface.co/datasets/ardamamur/EgoExOR))repository for efficient storage and access.
 - Merged HDF5 File: Consolidates all data, including splits, into a single file. Should be done locally. 
 
 
