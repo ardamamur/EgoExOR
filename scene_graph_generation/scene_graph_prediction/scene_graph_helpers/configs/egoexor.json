@@ -1,9 +1,9 @@
 {
     "dataset_name": "EgoExOR",
-    "split": "test",
-    "data_dir" : "/home/guests/shared/EgoExOR/data",
+    "split": "train",
+    "data_dir" : "/PATH/TO/DATASET/ROOT",
     "is_multimodal" : true,
-    "hdf5_path": "egoexor.h5", 
+    "hdf5_path": "PATH/TO/HDF5/FILE", 
     "temporality": "",
 
     "modalities": {

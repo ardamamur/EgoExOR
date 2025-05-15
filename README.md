@@ -18,7 +18,7 @@ Official code of the paper "EgoExOR: An Egocentric–Exocentric Operating Room D
 
 - **Authors**: [Ege Özsoy][eo], [Arda Mamur][am], Felix Tristram, Chantal Pellegrini, Magdalena Wysocki, Benjamin Busam, [Nassir Navab][nassir]
 
-Operating rooms (ORs) demand precise coordination among surgeons, nurses, and equipment in a fast-paced, occlusion-heavy environment, necessitating advanced perception models to enhance safety and efficiency. We present EgoExOR, a pioneering dataset to propel surgical scene understanding by fusing first-person and third-person perspectives. Spanning 93 minutes (84,277 frames at 15 FPS) of two critical spine procedures—Ultrasound-Guided Needle Insertion and Minimally Invasive Spine Surgery—EgoExOR integrates egocentric data (RGB, gaze, hand tracking, audio) from Project Aria glasses, exocentric RGB/depth from Azure Kinect cameras, and ultrasound imagery. Its detailed scene graph annotations, covering 36 entities and 22 relations (~573,000 triplets), enable robust modeling of clinical interactions, supporting tasks like action recognition and robotic guidance. We evaluate EgoExOR with established OR perception models and a new tailored approach, showcasing its potential to advance surgical automation and skill analysis. EgoExOR redefines OR datasets, offering a rich, multimodal resource for next-generation clinical perception.
+Operating rooms (ORs) demand precise coordination among surgeons, nurses, and equipment in a fast-paced, occlusion-heavy environment, necessitating advanced perception models to enhance safety and efficiency. Existing datasets either provide partial egocentric views or sparse exocentric multi-view context, but don't explore the comprehensive combination of both. We introduce EgoExOR, the first OR dataset and accompanying benchmark to fuse first-person and third-person perspectives. Spanning 94 minutes (84,553 frames at 15 FPS) of two simulated spine procedures, Ultrasound-Guided Needle Insertion and Minimally Invasive Spine Surgery, EgoExOR integrates egocentric data (RGB, gaze, hand tracking, audio) from wearable glasses, exocentric RGB and depth from RGB-D cameras, and ultrasound imagery. Its detailed scene graph annotations, covering 36 entities and 22 relations (~573,000 triplets), enable robust modeling of clinical interactions, supporting tasks like action recognition and human-centric perception. We evaluate the surgical scene graph generation performance of two adapted state-of-the-art models and offer a new baseline that explicitly leverages EgoExOR’s multimodal and multi-perspective signals. Our new dataset and benchmark set a new foundation for OR perception, offering a rich, multimodal resource for next-generation clinical perception. 
 
 
 
@@ -59,7 +59,7 @@ To fully EgoExOR’s multi-perspective data, we propose a new baseline model wit
 - Merge all h5 files into a single one. [`data/README.md`](data/README.md)
   ```python
   python -m data.utils.merge_h5 \
-    --data_dir /home/guests/shared/EgoExOR/data \
+    --data_dir /path/to/dataset/root_dir/ \
     --input_files miss_1.h5 miss_2.h5 miss_3.h5 miss_4.h5 ultrasound_1.h5 ultrasound_2.h5 ultrasound_3.h5 ultrasound_4.h5 ultrasound_5_14.h5 ultrasound_5_58.h5 \
     --splits_file splits.h5 \
     --output_file egoexor.h5 \
@@ -75,7 +75,7 @@ To fully EgoExOR’s multi-perspective data, we propose a new baseline model wit
 - For the training, we first need to generate the training json. To this end run `python -m scene_graph_prediction.llava_helpers.generate_dataset_format_for_llava --hdf5_path "egoexor.h5" --dataset_name egoexor`. Reading through this script is suggested, it has some parameters for adjusting number of samples via N_PEM etc controlled via config file [`egoexor.json`](scene_graph_generation/scene_graph_prediction/scene_graph_helpers/configs/egoexor.json)
 - Now with the training json ready, we can proceed to training. cd into the LLaVA folder and run:
 ```python
-    python -m llava.train.train_mem \
+python -m llava.train.train_mem \
   --lora_enable True \
   --bits 4 \
   --lora_r 128 \
@@ -85,7 +85,7 @@ To fully EgoExOR’s multi-perspective data, we propose a new baseline model wit
   --version v1 \
   --dataset_name egoexor \
   --data_path ../data/llava_samples/train_4perm_Falsetemp_Falsetempaug_EgoExOR_drophistory0.5.json \
-  --hdf5_path /home/guests/shared/EgoExOR/data/egoexor.h5 \
+  --hdf5_path /path/to/egoexor.h5/ \
   --token_weight_path ../data/llava_samples/train_token_freqs_7b_4perm_EgoExOR.json \
   --vision_tower openai/clip-vit-large-patch14-336 \
   --mm_projector_type mlp2x_gelu \
@@ -123,12 +123,24 @@ To fully EgoExOR’s multi-perspective data, we propose a new baseline model wit
 ```
 
 ### 🚀 Evaluation
-- Pretrained models will be public soon. Meanwhile you can train your own models.
-- For evaluation of EgoExOR model run the following command. 
-```python
-python -m scene_graph_prediction.main --config "egoexor.json" \
- --model_path "checkpoints/llava-v1.5-7b-task-lora_hybridor_qlora_4perm_EgoExOR" \
- --data_path "llava_samples/test_1perm_Falsetemp_Falsetempaug_EgoExOR_drophistory0.5.json" \
- --benchmark_on "egoexor" \
- --mode "eval_all"
-```
+
+🔗 **Pretrained Model**  
+The pretrained foundation model for EgoExOR is available on Hugging Face:  
+👉 [EgoExOR Hugging Face Model](https://huggingface.co/ardamamur/EgoExOR)
+
+📦 **Setup**  
+1. Download the zipped model file from the link above.  
+2. Unzip the file to extract the model checkpoint and configuration.  
+3. Download the test sample JSON file from the model repository.
+4. Adjust the `data_dir` and `hdf5_path` via config file [`egoexor.json`](scene_graph_generation/scene_graph_prediction/scene_graph_helpers/configs/egoexor.json) if not already. 
+
+🧪 **Run Evaluation**  
+Use the following command to evaluate the EgoExOR model on your data:
+
+```bash
+python -m scene_graph_prediction.main \
+    --config "egoexor.json" \
+    --model_path "path/to/model" \
+    --data_path "path/to/data_samples" \
+    --benchmark_on "egoexor" \
+    --mode "infer"

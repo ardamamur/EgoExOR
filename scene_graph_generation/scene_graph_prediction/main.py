@@ -98,6 +98,10 @@ def main():
     config.dataset_name = name
     config.data_path = args.data_path
     config.batch_size = batch_size
+    if args.mode == "infer":
+        config.split = "test"
+    else:
+        config.split = "validation"
 
     print("Evaluation Mode : ", mode, " on ", name)
 
