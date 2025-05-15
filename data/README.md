@@ -75,8 +75,8 @@ Individual files are organized hierarchically by surgery type, procedure, and ta
       - Lists relationships (e.g., "holding") with their names and unique IDs.
   - `sources/`
     - `sources` (Dataset: `name`, `id`)
-      - Lists data sources (e.g., cameras like 'aria01', sensors) with their names and unique IDs.
-      - **Note**: Camera IDs in `eye_gaze/coordinates` and `hand_tracking/positions` are mapped to this `sources` dataset for accurate source names. Do not use `takes/<take_id>/sources/` for mapping camera IDs, though the source names are listed in the same order.
+      - Lists data sources (e.g., cameras like 'assistant', 'ultrasound', 'external') with their names and unique IDs.
+      - **Note**: Camera IDs in `eye_gaze/coordinates` are mapped to this `sources` dataset for accurate source names. Do not use `takes/<take_id>/sources/` for mapping camera IDs to get the source names, though the source names are listed in the same order.
   - `dataset/`
     - Attributes: `version`, `creation_date`, `title`
       - Provides dataset-level information, such as version number, creation date, and title.
@@ -90,23 +90,23 @@ Individual files are organized hierarchically by surgery type, procedure, and ta
           - Directory for a specific recording (subclip) of a procedure.
           - **`sources/`**
             - Attributes: `source_count` (int), `source_0` (e.g., 'head_surgeon'), `source_1`, ...
-              - Metadata for subclip cameras, mapping array indices to camera IDs.
-              - **Note**: Source names are in the same order as in `metadata/sources`, but for camera ID mapping (in gaze), use `metadata/sources` to get accurate source names.
+              - Metadata for take cameras/sources, mapping array indices to camera/source IDs.
+              - **Note**: Source names are in the same order as in `metadata/sources`, but for camera/source ID mapping (in gaze), use `metadata/sources` to get accurate source names.
           - **`frames/`**
             - `rgb` (Dataset: `[num_frames, num_cameras, height, width, 3]`, `uint8`)
               - Synchronized video frames with dimensions: number of frames, number of cameras, height, width, and 3 color channels.
           - **`eye_gaze/`**
-            - `coordinates` (Dataset: `[num_frames, num_aria_cameras, 3]`, `float32`)
-              - Eye gaze data from ARIA devices with dimensions: number of frames, number of Aria cameras, and 3 values (camera ID, x-coordinate, y-coordinate).
+            - `coordinates` (Dataset: `[num_frames, num_ego_cameras, 3]`, `float32`)
+              - Eye gaze data from Egocentric devices with dimensions: number of frames, number of ego cameras, and 3 values (camera/source ID, x-coordinate, y-coordinate).
               - Invalid gaze points are marked as `[-1., -1.]`.
               - **Note**: The `camera_id` in the last dimension must be mapped to `metadata/sources` for the correct source name, not to `takes/<take_id>/sources/`.
           - **`eye_gaze_depth/`**
-            - `values` (Dataset: `[num_frames, num_aria_cameras]`, `float32`)
-              - Depth values for eye gaze in meters, synchronized with `eye_gaze/coordinates` (can use camera ID from `coordinates`).
+            - `values` (Dataset: `[num_frames, num_ego_cameras]`, `float32`)
+              - Depth values for eye gaze in meters, synchronized with `eye_gaze/coordinates` (can use camera/source ID from `coordinates`).
               - Defaults to 1.0 if depth data is unavailable.
           - **`hand_tracking/`**
-            - `positions` (Dataset: `[num_frames, num_aria_cameras, 17]`, `float32`)
-              - Hand tracking data from ARIA devices with dimensions: number of frames, number of Aria cameras, and 17 values (camera ID + 8 keypoints for left hand + 8 keypoints for right hand, including wrist, palm, and normals).
+            - `positions` (Dataset: `[num_frames, num_ego_cameras, 17]`, `float32`)
+              - Hand tracking data from egocentric devices with dimensions: number of frames, number of ego cameras, and 17 values (camera ID + 8 keypoints for left hand + 8 keypoints for right hand, including wrist, palm, and normals).
               - Invalid points are marked with `NaN`.
           - **`audio/`** (Optional)
             - `waveform` (Dataset: `[num_samples, 2]`, `float32`)
