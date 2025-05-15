@@ -3,12 +3,17 @@
   <tr>
     <td style="padding: 0;">
       <a href="https://huggingface.co/datasets/ardamamur/EgoExOR">
-        <img src="https://img.shields.io/badge/Data-4d5eff?style=for-the-badge&logo=huggingface&logoColor=ffffff&labelColor" alt="Data">
+        <img src="https://img.shields.io/badge/Data-4d5eff?style=for-the-badge&logo=huggingface&logoColor=ffc83d&labelColor" alt="Data">
       </a>
     </td>
     <td style="padding: 0;">
       <a href="https://github.com/ardamamur/EgoExOR">
         <img src="https://img.shields.io/badge/Code-000000?style=for-the-badge&logo=github&logoColor=white" alt="Code">
+      </a>
+    </td>
+    <td style="padding: 0;">
+      <a href="https://huggingface.co/ardamamur/EgoExOR">
+        <img src="https://img.shields.io/badge/Model-8F43EE?style=for-the-badge&logo=huggingface&logoColor=ffc83d&labelColor" alt="Model">
       </a>
     </td>
   </tr>
