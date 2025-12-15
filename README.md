@@ -32,7 +32,7 @@ Operating rooms (ORs) demand precise coordination among surgeons, nurses, and eq
 [nassir]: https://www.cs.cit.tum.de/camp/members/cv-nassir-navab/nassir-navab/
 
 <p align="center">
-  <img src="./figures/dataset_overview.png" alt="EgoExOR Overview" width="80%"/>
+  <img src="docs/figures/dataset_overview.png" alt="EgoExOR Overview" width="80%"/>
 </p>
 <p align="center">
   <em>Figure: Overview of one timepoint from the EgoExoR  dataset, showcasing synchronized multi-view egocentric RGB and exocentric RGB-D video streams, live ultrasound monitor feed,  audio, a fused 3D point-cloud reconstruction, and gaze, hand‐pose and scene graph annotations.</em>
@@ -50,7 +50,7 @@ This section builds upon the MM-OR (https://github.com/egeozsoy/MM-OR) and LLava
 To fully EgoExOR’s multi-perspective data, we propose a new baseline model with two distinct branches, as shown in figure below. The egocentric branch processes first-person RGB, hand pose, and gaze data, while the exocentric branch handles third-person RGB-D, ultrasound screen recordings, audio, and point clouds. Each branch employs a 2-layer transformer to fuse its inputs into a fixed sized representation of $N$ tokens. These representations are then concatenated to form the input for the LLM, integrating insights from both perspectives. Unlike ORacle and MM2SG, this dual-branch architecture explicitly separates and fuses egocentric and exocentric signals, enhancing the modeling of parallel actions and staff interactions.
 
 <p align="center">
-  <img src="./figures/model_overview.png" alt="EgoExOR Overview" width="80%"/>
+  <img src="docs/figures/model_overview.png" alt="EgoExOR Overview" width="80%"/>
 </p>
 <p align="center">
   <em>Figure: Overview of the proposed holistic operating-room modeling framework.</em>
