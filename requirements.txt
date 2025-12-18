@@ -26,4 +26,5 @@ flash-attn==2.3.4
 torchinfo==1.8.0
 wandb==0.19.11
 numpy==1.26.4
+fiftyone==1.10.0
 # pip install -e . in LLaVA to install it locally, editable

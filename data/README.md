@@ -14,6 +14,9 @@ The EgoExOR dataset provides a comprehensive, multimodal view of simulated surgi
 
 [explore_with_fiftyone.webm](https://github.com/user-attachments/assets/3dbdd5be-5fa3-4fbf-a945-f65806bb0136)
 
+```bash
+pip install fiftyone h5py
+```
 
 ```python
 import fiftyone as fo
@@ -21,21 +24,21 @@ import fiftyone.zoo as foz
 
 # Option 1: Download specific files from HuggingFace (default: miss_4.h5)
 dataset = foz.load_zoo_dataset(
-    "https://github.com/ardamamur/EgoExOR",
+    "https://github.com/AdonaiVera/EgoExOR",
     max_samples=100,
     h5_files=["miss_4.h5"],  # Options: miss_1-4.h5, ultrasound_1-4.h5, ultrasound_5_14.h5, ultrasound_5_58.h5
 )
 
 # Option 2: Use local h5 file or directory
 dataset = foz.load_zoo_dataset(
-    "https://github.com/ardamamur/EgoExOR",
+    "https://github.com/AdonaiVera/EgoExOR",
     max_samples=100,
     h5_path="/path/to/miss_4.h5",  # Single file or directory with .h5 files
 )
 
 # Option 3: Download full dataset and merge (~100GB required)
 dataset = foz.load_zoo_dataset(
-    "https://github.com/ardamamur/EgoExOR",
+    "https://github.com/AdonaiVera/EgoExOR",
     max_samples=100,
     download_full=True,
 )

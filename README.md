@@ -43,10 +43,14 @@ Operating rooms (ORs) demand precise coordination among surgeons, nurses, and eq
 
 The **EgoExOR** dataset is hosted on [Hugging Face](https://huggingface.co/datasets/ardamamur/EgoExOR). It provides a rich collection of multimodal simulated surgical procedure data, including synchronized RGB video, audio, eye-gaze, hand-tracking, 3D point clouds, and scene-graph annotations. For detailed information on dataset structure, modalities, and usage instructions, please refer to the comprehensive guidelines in [`data/README.md`](data/README.md).
 
-### 🔍 Explore with FiftyOne
+### Explore with FiftyOne
 [explore_with_fiftyone.webm](https://github.com/user-attachments/assets/3dbdd5be-5fa3-4fbf-a945-f65806bb0136)
 
 You can interactively explore EgoExOR using [FiftyOne](https://docs.voxel51.com/):
+
+```bash
+pip install fiftyone h5py
+```
 
 ```python
 import fiftyone as fo
@@ -54,7 +58,7 @@ import fiftyone.zoo as foz
 
 # Load dataset (downloads miss_4.h5 by default)
 dataset = foz.load_zoo_dataset(
-    "https://github.com/ardamamur/EgoExOR",
+    "https://github.com/AdonaiVera/EgoExOR",
     max_samples=100,
 )
 
