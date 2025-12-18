@@ -49,7 +49,7 @@ The **EgoExOR** dataset is hosted on [Hugging Face](https://huggingface.co/datas
 You can interactively explore EgoExOR using [FiftyOne](https://docs.voxel51.com/):
 
 ```bash
-pip install fiftyone h5py
+pip install fiftyone h5py huggingface-hub
 ```
 
 ```python
