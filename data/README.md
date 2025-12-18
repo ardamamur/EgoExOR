@@ -46,6 +46,8 @@ dataset = foz.load_zoo_dataset(
 fo.launch_app(dataset)
 ```
 
+For full FiftyOne integration details, see [AdonaiVera/EgoExOR](https://github.com/AdonaiVera/EgoExOR).
+
 ## 🚀 Quick Start
 Get started with the dataset using the provided Python utilities. Refer to [´tutorial.ipynb´] for detailed examples.
 
