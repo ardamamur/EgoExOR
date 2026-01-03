@@ -60,7 +60,7 @@ merge_files(
 ## 📐 Camera Calibration and Depth Metadata
 
 EgoExOR provides camera calibration and depth-related metadata for the exocentric camera setup, enabling geometry-aware analysis and spatial reasoning.  
-The calibration information can be found in [`data/calibration/exocentric/`](data/calibration/exocentric/)
+The calibration information can be found in [`data/calibration/exocentric/`](calibration/exocentric/)
 
 For each exocentric camera, the dataset includes:
 
