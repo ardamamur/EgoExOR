@@ -41,37 +41,11 @@ Operating rooms (ORs) demand precise coordination among surgeons, nurses, and eq
 
 ## EgoExOR Dataset
 
-The **EgoExOR** dataset is hosted on [Hugging Face](https://huggingface.co/datasets/ardamamur/EgoExOR). It provides a rich collection of multimodal simulated surgical procedure data, including synchronized RGB video, audio, eye-gaze, hand-tracking, 3D point clouds, and scene-graph annotations. For detailed information on dataset structure, modalities, and usage instructions, please refer to the comprehensive guidelines in [`data/README.md`](data/README.md).
+The **EgoExOR** dataset is hosted on [Hugging Face](https://huggingface.co/datasets/ardamamur/EgoExOR). It provides a rich collection of multimodal simulated surgical procedure data, including synchronized RGB video, audio, eye gaze, hand tracking, 3D point clouds, and scene graph annotations.
 
-### Explore with FiftyOne
-[explore_with_fiftyone.webm](https://github.com/user-attachments/assets/3dbdd5be-5fa3-4fbf-a945-f65806bb0136)
+Detailed information about the dataset structure, modalities, storage format, and usage instructions can be found in the comprehensive documentation at [`data/README.md`](data/README.md).
+In addition to the provided Python utilities, EgoExOR can **optionally** be visualized and explored using external visualization tools for interactive inspection and qualitative analysis. This can be useful for browsing synchronized modalities, inspecting annotations, and debugging data pipelines. Further details on visualization and supported tools are also documented in [`data/README.md`](data/README.md).
 
-You can interactively explore EgoExOR using [FiftyOne](https://docs.voxel51.com/):
-
-```bash
-pip install fiftyone h5py huggingface-hub
-```
-
-```python
-import fiftyone as fo
-import fiftyone.zoo as foz
-
-# Load dataset (downloads miss_4.h5 by default)
-dataset = foz.load_zoo_dataset(
-    "https://github.com/AdonaiVera/EgoExOR",
-    max_samples=100,
-)
-
-# Launch the FiftyOne App
-fo.launch_app(dataset)
-```
-
-The FiftyOne loader supports multiple options:
-- **Specific files**: `h5_files=["miss_1.h5", "ultrasound_1.h5"]`
-- **Local files**: `h5_path="/path/to/egoexor.h5"`
-- **Full dataset**: `download_full=True` (requires ~100GB)
-
-All modalities are loaded as grouped samples with synchronized views from egocentric cameras (head_surgeon, assistant, circulator, anesthetist), exocentric cameras, and 3D point clouds.
 
 ## Scene Graph Generation
 This part of the repository contains the code for training and evaluating scene graph generation models.

@@ -10,43 +10,6 @@ The EgoExOR dataset provides a comprehensive, multimodal view of simulated surgi
 
 * **Research Applicability**: EgoExOR aims to fill the gap in both egocentric and exocentric surgrical datasets, supporting development of AI assistants, skill assessment tools, and multimodal models in medical and augmented reality domains.
 
-## 🚀 Quick Start with FiftyOne
-
-[explore_with_fiftyone.webm](https://github.com/user-attachments/assets/3dbdd5be-5fa3-4fbf-a945-f65806bb0136)
-
-```bash
-pip install fiftyone h5py huggingface-hub
-```
-
-```python
-import fiftyone as fo
-import fiftyone.zoo as foz
-
-# Option 1: Download specific files from HuggingFace (default: miss_4.h5)
-dataset = foz.load_zoo_dataset(
-    "https://github.com/AdonaiVera/EgoExOR",
-    max_samples=100,
-    h5_files=["miss_4.h5"],  # Options: miss_1-4.h5, ultrasound_1-4.h5, ultrasound_5_14.h5, ultrasound_5_58.h5
-)
-
-# Option 2: Use local h5 file or directory
-dataset = foz.load_zoo_dataset(
-    "https://github.com/AdonaiVera/EgoExOR",
-    max_samples=100,
-    h5_path="/path/to/miss_4.h5",  # Single file or directory with .h5 files
-)
-
-# Option 3: Download full dataset and merge (~100GB required)
-dataset = foz.load_zoo_dataset(
-    "https://github.com/AdonaiVera/EgoExOR",
-    max_samples=100,
-    download_full=True,
-)
-
-fo.launch_app(dataset)
-```
-
-For full FiftyOne integration details, see [AdonaiVera/EgoExOR](https://github.com/AdonaiVera/EgoExOR).
 
 ## 🚀 Quick Start
 Get started with the dataset using the provided Python utilities. Refer to [´tutorial.ipynb´] for detailed examples.
@@ -93,6 +56,35 @@ merge_files(
     output_file="EgoExOR.h5"
 )
 ```
+
+## 🔎 Visualization (Optional)
+For interactive browsing, qualitative inspection, and debugging, the dataset can optionally be explored using external visualization frameworks such as [FiftyOne](https://docs.voxel51.com/).
+
+```bash
+pip install fiftyone h5py huggingface-hub
+```
+
+```python
+import fiftyone as fo
+import fiftyone.zoo as foz
+
+# Load dataset (downloads miss_4.h5 by default)
+dataset = foz.load_zoo_dataset(
+    "https://github.com/AdonaiVera/EgoExOR",
+    max_samples=100,
+)
+
+# Launch the FiftyOne App
+fo.launch_app(dataset)
+```
+
+The FiftyOne loader supports multiple options:
+- **Specific files**: `h5_files=["miss_1.h5", "ultrasound_1.h5"]`
+- **Local files**: `h5_path="/path/to/egoexor.h5"`
+- **Full dataset**: `download_full=True` (requires ~100GB)
+
+For full FiftyOne integration details, see [AdonaiVera/EgoExOR](https://github.com/AdonaiVera/EgoExOR).
+
 
 ## 📂 Dataset Structure
 
