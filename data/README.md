@@ -57,6 +57,38 @@ merge_files(
 )
 ```
 
+## 📐 Camera Calibration and Depth Metadata
+
+EgoExOR provides camera calibration and depth-related metadata for the exocentric camera setup, enabling geometry-aware analysis and spatial reasoning.  
+The calibration information can be found in [`data/calibration/exocentric/`](calibration/exocentric/)
+
+For each exocentric camera, the dataset includes:
+
+### Intrinsic Parameters
+- Image resolution (`width`, `height`)
+- Focal lengths and principal points
+- Full intrinsic camera matrices for both **color** and **depth** sensors
+- Radial and tangential distortion coefficients
+
+### Depth and Sensor Parameters
+- Depth field-of-view parameters
+- Metric depth scaling information
+- Depth-to-color sensor alignment (`color2depth_transform`)
+
+### Camera Pose (Extrinsics)
+- Camera pose represented as:
+  - Translation (in meters)
+  - Rotation (quaternion: `x y z w`)
+- The pose is defined in a common reference frame, allowing spatial alignment across cameras and modalities
+
+### Sensor-to-Sensor Transforms
+- Depth-to-accelerometer transform
+- Depth-to-gyroscope transform  
+  *(provided for completeness and synchronization with auxiliary sensor streams)*
+
+
+
+
 ## 🔎 Visualization (Optional)
 For interactive browsing, qualitative inspection, and debugging, the dataset can optionally be explored using external visualization frameworks such as [FiftyOne](https://docs.voxel51.com/).
 
