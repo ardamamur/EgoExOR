@@ -10,6 +10,7 @@ The EgoExOR dataset provides a comprehensive, multimodal view of simulated surgi
 
 * **Research Applicability**: EgoExOR aims to fill the gap in both egocentric and exocentric surgrical datasets, supporting development of AI assistants, skill assessment tools, and multimodal models in medical and augmented reality domains.
 
+
 ## 🚀 Quick Start
 Get started with the dataset using the provided Python utilities. Refer to [´tutorial.ipynb´] for detailed examples.
 
@@ -55,6 +56,35 @@ merge_files(
     output_file="EgoExOR.h5"
 )
 ```
+
+## 🔎 Visualization (Optional)
+For interactive browsing, qualitative inspection, and debugging, the dataset can optionally be explored using external visualization frameworks such as [FiftyOne](https://docs.voxel51.com/).
+
+```bash
+pip install fiftyone h5py huggingface-hub
+```
+
+```python
+import fiftyone as fo
+import fiftyone.zoo as foz
+
+# Load dataset (downloads miss_4.h5 by default)
+dataset = foz.load_zoo_dataset(
+    "https://github.com/AdonaiVera/EgoExOR",
+    max_samples=100,
+)
+
+# Launch the FiftyOne App
+fo.launch_app(dataset)
+```
+
+The FiftyOne loader supports multiple options:
+- **Specific files**: `h5_files=["miss_1.h5", "ultrasound_1.h5"]`
+- **Local files**: `h5_path="/path/to/egoexor.h5"`
+- **Full dataset**: `download_full=True` (requires ~100GB)
+
+For full FiftyOne integration details, see [AdonaiVera/EgoExOR](https://github.com/AdonaiVera/EgoExOR).
+
 
 ## 📂 Dataset Structure
 
