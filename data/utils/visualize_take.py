@@ -5,9 +5,17 @@ import argparse
 import os
 from tqdm import tqdm
 import subprocess
-from typing import Tuple
+from typing import Optional, Tuple
+
 from utils.constants import CAMERA_TYPE_MAPPING, EGOCENTRIC_SOURCES, EXOCENTRIC_SOURCES, GAZE_FIXATION, GAZE_FIXATION_TO_TAKE
-from utils.visualize_timepoint import draw_camera_label, _needs_fixation, apply_lut, _draw_hand_points
+from utils.load_h5 import DatasetVersion, detect_dataset_version, get_take_path
+from utils.visualize_timepoint import (
+    draw_camera_label,
+    _needs_fixation,
+    apply_lut,
+    _draw_hand_points,
+    _scale_for_resolution,
+)
 
 def parse_args():
     """Parse command line arguments."""
@@ -62,12 +70,19 @@ def parse_args():
 
     return parser.parse_args()
 
-def load_data(h5_file, surgery_type, procedure_id, take_id):
-    """Load all required data from the HDF5 file for a specific subclip."""
+def load_data(
+    h5_file,
+    procedure: str = None,
+    phase: int = None,
+    take: int = None,
+    dataset_version: Optional[DatasetVersion] = None,
+):
+    """Load all required data from the HDF5 file for a specific take.
+    Pass procedure, phase, take for both legacy and HQ formats.
+    """
+    version = dataset_version or detect_dataset_version(h5_file)
+    base_path = get_take_path(version, procedure=procedure, phase=phase, take=take)
     with h5py.File(h5_file, 'r') as f:
-        base_path = f'/data/{surgery_type}/{procedure_id}/take/{take_id}'
-        
-        # Check if the specified subclip exists
         if base_path not in f:
             raise ValueError(f"Take not found: {base_path}")
         
@@ -125,7 +140,8 @@ def load_data(h5_file, surgery_type, procedure_id, take_id):
             'annotations_path': f'{base_path}/annotations' if annotations_dir_exists else None,
             'entity_vocab': entity_vocab,
             'relation_vocab': relation_vocab,
-            'audio': audio
+            'audio': audio,
+            'dataset_version': version,
         }
     
 def get_frame_annotations(h5_file, annotations_path, frame_id):
@@ -160,13 +176,25 @@ def _write_stereo_wav(wav_path: str, stereo_data: np.ndarray, sample_rate: int =
     print(f"Mixed audio saved to '{wav_path}'.")
 
 
-def visualize_take(h5_file, 
-                   surgery_type, procedure_id, take_id, 
-                   output_path, 
-                   fps=15,
-                   include_audio= True,
-                   debug_limit=None):
-    take_data = load_data(h5_file, surgery_type, procedure_id, take_id)
+def visualize_take(
+    h5_file,
+    output_path,
+    procedure: str = None,
+    phase: int = None,
+    take: int = None,
+    fps: int = 15,
+    include_audio: bool = True,
+    debug_limit: int = None,
+    dataset_version: Optional[DatasetVersion] = None,
+):
+    """Visualize a take as a mosaic video. Supports both legacy and HQ formats."""
+    take_data = load_data(
+        h5_file,
+        procedure=procedure,
+        phase=phase,
+        take=take,
+        dataset_version=dataset_version,
+    )
     rgb_video = take_data['rgb']
     gaze_data = take_data['eye_gaze']
     gaze_depth_data = take_data['eye_gaze_depth']
@@ -177,7 +205,12 @@ def visualize_take(h5_file,
     h5_file_path = take_data['h5_file']
     annotations_path = take_data['annotations_path']
     
-    num_frames, num_cameras, frame_h, frame_w, _ = rgb_video.shape
+    num_frames, num_cameras, orig_h, orig_w, _ = rgb_video.shape
+    is_hq = take_data["dataset_version"] == "hq"
+    if is_hq:
+        frame_h, frame_w = 336, 336
+    else:
+        frame_h, frame_w = orig_h, orig_w
 
     mosaic_rows = 3
     mosaic_cols = (num_cameras + mosaic_rows - 1) // mosaic_rows
@@ -192,7 +225,7 @@ def visualize_take(h5_file,
 
     # Create temporary video without audio
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    temp_noaudio_path = f"temp_noaudio_{surgery_type}_{procedure_id}_{take_id}.mp4"
+    temp_noaudio_path = f"temp_noaudio_{procedure}_{phase}_{take}.mp4"
     writer = cv2.VideoWriter(temp_noaudio_path, fourcc, fps, (mosaic_w, mosaic_h))
     if debug_limit is not None:
         num_frames = debug_limit
@@ -204,11 +237,14 @@ def visualize_take(h5_file,
         occupied_positions = set()
 
         # Process camera frames
+        apply_lut_for_external = take_data["dataset_version"] == "legacy"
+        hq_stores_rgb = take_data["dataset_version"] == "hq"
         for cam_idx, cam_name in sources.items():
             frame = rgb_video[f_idx, cam_idx].copy()
-            if cam_name not in EGOCENTRIC_SOURCES and cam_name not in ["or_light", "microscope", "simstation", "ultrasound"]:
-                # rgbd video from azure kinect sources neeeded to be applied LUT in order to make them more similar to the other cameras
+            if apply_lut_for_external and cam_name not in EGOCENTRIC_SOURCES and cam_name not in ["or_light", "microscope", "simstation", "ultrasound"]:
                 frame = apply_lut(frame)
+            if hq_stores_rgb:
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
             #frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
@@ -225,7 +261,8 @@ def visualize_take(h5_file,
                             gy += GAZE_FIXATION["y"]
                         
                         if 0 <= gx < frame.shape[1] and 0 <= gy < frame.shape[0]:
-                            cv2.circle(frame, (gx, gy), 6, (255, 0, 0), thickness=-1)
+                            r_gaze = max(6, int(6 * _scale_for_resolution(frame.shape[0], frame.shape[1])))
+                            cv2.circle(frame, (gx, gy), r_gaze, (255, 0, 0), thickness=-1)
 
 
             if cam_name in EGOCENTRIC_SOURCES and hand_data is not None:
@@ -247,7 +284,8 @@ def visualize_take(h5_file,
                        
             draw_camera_label(frame, f"{cam_name}{depth_str}")
 
-
+            if is_hq:
+                frame = cv2.resize(frame, (336, 336), interpolation=cv2.INTER_AREA)
 
             # Insert frame into 3-row mosaic layout
             r = cam_idx // mosaic_cols
@@ -363,9 +401,9 @@ def main():
         # Call the visualize_subclip function with the parsed arguments
         visualize_take(
             h5_file=h5_file,
-            surgery_type=args.surgery_type,
-            procedure_id=args.procedure_id,
-            take_id=args.take_id,
+            procedure=args.surgery_type,
+            phase=args.procedure_id,
+            take=args.take_id,
             output_path=output_path,
             debug_limit = args.debug_limit,
             fps=15,
