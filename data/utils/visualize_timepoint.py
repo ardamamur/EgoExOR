@@ -4,7 +4,10 @@ import numpy as np
 import cv2
 from pathlib import Path
 import matplotlib.pyplot as plt
+from typing import Optional
+
 from utils.constants import CAMERA_TYPE_MAPPING, GAZE_FIXATION, GAZE_FIXATION_TO_TAKE
+from utils.load_h5 import detect_dataset_version, get_take_path, DatasetVersion
 
 def get_frame_annotations(h5_file, annotations_path, frame_id):
     """Get annotations for a specific frame."""
@@ -17,14 +20,23 @@ def get_frame_annotations(h5_file, annotations_path, frame_id):
             return f[ann_path][:]
         return None
 
+def _scale_for_resolution(h: int, w: int, ref: int = 480) -> float:
+    """Scale factor so gaze/hand drawings stay visible on high-res (HQ) images."""
+    return max(1.0, min(h, w) / ref)
+
+
 def _draw_hand_points(img_bgr: np.ndarray, hand_vals: np.ndarray):
     """Draw hand tracking points and connecting lines.
+    Sizes scale with image resolution for visibility on HQ images.
     
     Args:
         img_bgr: BGR image to draw on
         hand_vals: 16-element vector [LWx, LWy, LPx, LPy, RWx, RWy, RPx, RPy, 
                                     LWnx, LWny, LPnx, LPny, RWnx, RWny, RPnx, RPny]
     """
+    scale = _scale_for_resolution(img_bgr.shape[0], img_bgr.shape[1])
+    r = int(4 * scale)
+    t = max(1, int(2 * scale))
     colors = [
         (255, 0, 0),    # LW => Blue
         (255, 0, 0),    # LP => Blue
@@ -43,7 +55,7 @@ def _draw_hand_points(img_bgr: np.ndarray, hand_vals: np.ndarray):
         if not np.isnan(x) and not np.isnan(y):
             xi, yi = int(x), int(y)
             if 0 <= xi < img_bgr.shape[1] and 0 <= yi < img_bgr.shape[0]:
-                cv2.circle(img_bgr, (xi, yi), 4, colors[i], thickness=-1)
+                cv2.circle(img_bgr, (xi, yi), r, colors[i], thickness=-1)
 
     # Draw lines connecting base points to corresponding normal tip points
     pairs = [(0, 4), (1, 5), (2, 6), (3, 7)]  # Base to normal point connections
@@ -58,7 +70,7 @@ def _draw_hand_points(img_bgr: np.ndarray, hand_vals: np.ndarray):
             xi_t, yi_t = int(tx), int(ty)
             if (0 <= xi_b < img_bgr.shape[1] and 0 <= yi_b < img_bgr.shape[0] and
                 0 <= xi_t < img_bgr.shape[1] and 0 <= yi_t < img_bgr.shape[0]):
-                cv2.line(img_bgr, (xi_b, yi_b), (xi_t, yi_t), colors[tip_idx], thickness=2)    
+                cv2.line(img_bgr, (xi_b, yi_b), (xi_t, yi_t), colors[tip_idx], thickness=t)    
 
 def apply_lut(frame):
     """Apply a LUT (Look-Up Table) to the BGR frame to adjust colors."""
@@ -143,32 +155,41 @@ def create_mosaic(image_dict, title=None, ncols=4, figsize=(18, 10)):
 def visualize_frame_group(
     h5_path: str = None,
     h5_file: h5py.File = None,
-    surgery_type: str = None,
-    procedure_id: int = None,
-    take_id: int = None,
+    procedure: str = None,
+    phase: int = None,
+    take: int = None,
     frame_idx: int = 0,
     save_frames: bool = False,
     figures_dir: str | os.PathLike = "figures",
+    dataset_version: Optional[DatasetVersion] = None,
 ):
     """
     Load RGB, gaze, and hand data from a specific frame and show in a mosaic.
 
     You must provide either `h5_path` or an open `h5_file` handle.
     Any cam whose frame isn’t a valid H×W×3 array will be skipped.
+    Pass procedure, phase, take for both legacy and HQ formats.
     """
-    # --- open file if needed ---
     if h5_file is None:
         if h5_path is None:
             raise ValueError("Must provide either h5_path or h5_file")
+        path_for_detect = h5_path
         f = h5py.File(h5_path, "r")
         close_when_done = True
     else:
+        path_for_detect = getattr(h5_file, "filename", None)
+        if path_for_detect is None:
+            raise ValueError("h5_file must have filename for version detection")
         f = h5_file
         close_when_done = False
 
+    version = dataset_version or detect_dataset_version(path_for_detect)
+    take_path = get_take_path(version, procedure=procedure, phase=phase, take=take)
+    apply_lut_for_external = version == "legacy"
+    display_label = f"{procedure} phase {phase} take {take}"
+
     cam_overlay = {}
     aria_roles = {"head_surgeon", "assistant", "circulator", "anesthetist", "or_light", "microscope"}
-    take_path = f"/data/{surgery_type}/{procedure_id}/take/{take_id}"
 
     try:
         rgb = f[f"{take_path}/frames/rgb"][frame_idx]  # (n_cams, H, W, 3)
@@ -186,9 +207,11 @@ def visualize_frame_group(
             frame = rgb[cam_idx].copy()
             if isinstance(cam_name, (bytes, bytearray)):
                 cam_name = cam_name.decode("utf-8")
-            if cam_name not in aria_roles and cam_name not in ["simstation", "ultrasound"]:
+            if apply_lut_for_external and cam_name not in aria_roles and cam_name not in ["simstation", "ultrasound"]:
                 frame = apply_lut(frame)
-
+            # HQ stores RGB; legacy stores BGR. Pipeline expects BGR.
+            if version == "hq":
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             draw_camera_label(frame, cam_name)
 
@@ -206,7 +229,8 @@ def visualize_frame_group(
                             gy += GAZE_FIXATION["y"]
 
                         if 0 <= gx < frame.shape[1] and 0 <= gy < frame.shape[0]:
-                            cv2.circle(frame, (gx, gy), 6, (255, 0, 0), -1)
+                            r_gaze = max(6, int(6 * _scale_for_resolution(frame.shape[0], frame.shape[1])))
+                            cv2.circle(frame, (gx, gy), r_gaze, (255, 0, 0), -1)
 
             if cam_name in aria_roles and hand_data is not None:
                 hands = hand_data[frame_idx]
@@ -228,8 +252,12 @@ def visualize_frame_group(
                 cv2.imwrite(str(fig_path / fn), frame_bgr_ready)
 
 
-        frame_annotation = f[f'{annotations_path}/frame_{frame_idx}/rel_annotations'][:]
-        if frame_annotation is not None:
+        ann_frame_path = f"{annotations_path}/frame_{frame_idx}/rel_annotations"
+        if ann_frame_path not in f:
+            frame_annotation = None
+        else:
+            frame_annotation = f[ann_frame_path][:]
+        if frame_annotation is not None and len(frame_annotation) > 0:
             # Choose an icon (e.g. 📊, 🖼️, 🔍) and build your title
             icon = "📊"
             title_text = f"{icon} Scene Graph Annotation {icon}"
@@ -247,8 +275,8 @@ def visualize_frame_group(
         if close_when_done:
             f.close()
 
-    create_mosaic(cam_overlay, title=f"{surgery_type} Procedure {procedure_id} Take {take_id} @ Frame {frame_idx}")
+    create_mosaic(cam_overlay, title=f"{display_label} @ Frame {frame_idx}")
 
 
-# Example usage
-# visualize_frame_group(hf_file, "Ultrasound", 5, 1, frame_idx=1000)
+# Example usage:
+# visualize_frame_group(h5_path=f_path, procedure="MISS", phase=4, take=2, frame_idx=195)

@@ -2,11 +2,12 @@
 """
 Script to merge multiple EgoExOR HDF5 dataset files into a single file.
 
-This script takes multiple HDF5 files and combines them into a single file, 
-preserving all data and optionally, recalculating the train/validation/test splits.
+Supports both Legacy (ardamamur/EgoExOR) and HQ (TUM/EgoExOR) schemas.
+Version is auto-detected from the first input file.
 
 Example usage:
-    python merge_h5.py --input_files file1.h5 file2.h5 --output_file merged.h5
+    python merge_h5.py --data_dir ./ --input_files file1.h5 file2.h5 --output_file merged.h5
+    python merge_h5.py --data_dir ./ --input_files hq_*.h5 --output_file merged_hq.h5  # HQ (no splits)
 """
 import os
 import sys
@@ -16,10 +17,7 @@ import logging
 import numpy as np
 import argparse
 from pathlib import Path
-from sklearn.model_selection import train_test_split
-import random
 from collections import defaultdict
-
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -43,11 +41,11 @@ def parse_args():
         help="List of input HDF5 files to merge."
     )
     parser.add_argument(
-        "--splits_file", 
-        type=str, 
+        "--splits_file",
+        type=str,
         default=None,
         required=False,
-        help="Path of splits file."
+        help="Path of splits file (Legacy only; optional for HQ).",
     )
     parser.add_argument(
         "--output_file", 
@@ -56,6 +54,17 @@ def parse_args():
         help="Path to save the merged HDF5 dataset."
     )
     return parser.parse_args()
+
+
+def detect_dataset_version(h5_path):
+    """Detect Legacy vs HQ schema. Returns 'legacy' or 'hq'."""
+    with h5py.File(h5_path, "r") as f:
+        if "procedures" in f:
+            return "hq"
+        if "data" in f:
+            return "legacy"
+    raise ValueError("Unknown HDF5 schema: neither 'procedures' nor 'data' found at root")
+
 
 def copy_group(src_file, dst_file, src_path, dst_path=None):
     """
@@ -98,40 +107,56 @@ def copy_group(src_file, dst_file, src_path, dst_path=None):
                 if dst_item_path not in dst_file:
                     src_file.copy(src_item_path, dst_file[dst_path])
 
-def get_take_frame_entries(h5_file):
+def get_take_frame_entries(h5_file, version):
     """
-    Get all TAKE frame entries in the format (surgery_type, procedure_id, take_id, frame_id).
-    
+    Get all TAKE frame entries in the format (procedure, phase, take_id, frame_id).
+
     Args:
         h5_file: HDF5 file object
-        
+        version: 'legacy' or 'hq'
+
     Returns:
-        List of tuples (surgery_type, procedure_id, take_id, frame_id)
+        List of tuples (procedure, phase, take_id, frame_id)
     """
     entries = []
-    
-    if 'data' not in h5_file:
-        return entries
-    
-    # Iterate through all surgery types
-    for surgery_type in h5_file['data']:
-        # Iterate through all procedures
-        for procedure_id in h5_file[f'data/{surgery_type}']:
-            # Iterate through all takes
-            take_path = f'data/{surgery_type}/{procedure_id}/take'
-            if take_path in h5_file:
-                for take_id in h5_file[take_path]:
-                    # Get frame count from RGB dataset shape
-                    frames_path = f'{take_path}/{take_id}/frames/rgb'
+
+    if version == "legacy":
+        if "data" not in h5_file:
+            return entries
+        for surgery_type in h5_file["data"]:
+            for procedure_id in h5_file[f"data/{surgery_type}"]:
+                take_path = f"data/{surgery_type}/{procedure_id}/take"
+                if take_path in h5_file:
+                    for take_id in h5_file[take_path]:
+                        frames_path = f"{take_path}/{take_id}/frames/rgb"
+                        if frames_path in h5_file:
+                            try:
+                                num_frames = h5_file[frames_path].shape[0]
+                                for frame_id in range(num_frames):
+                                    entries.append((surgery_type, int(procedure_id), int(take_id), frame_id))
+                            except Exception as e:
+                                logger.warning(f"Error getting frame count for {frames_path}: {e}")
+    else:  # hq
+        if "procedures" not in h5_file:
+            return entries
+        for procedure in h5_file["procedures"]:
+            phases_grp = h5_file["procedures"][procedure].get("phases")
+            if phases_grp is None:
+                continue
+            for phase in phases_grp:
+                takes_grp = phases_grp[phase].get("takes")
+                if takes_grp is None:
+                    continue
+                for take_id in takes_grp:
+                    frames_path = f"procedures/{procedure}/phases/{phase}/takes/{take_id}/frames/rgb"
                     if frames_path in h5_file:
                         try:
                             num_frames = h5_file[frames_path].shape[0]
-                            # Add entry for each frame
                             for frame_id in range(num_frames):
-                                entries.append((surgery_type, int(procedure_id), int(take_id), frame_id))
+                                entries.append((procedure, int(phase), int(take_id), frame_id))
                         except Exception as e:
                             logger.warning(f"Error getting frame count for {frames_path}: {e}")
-    
+
     return entries
 
 
@@ -171,7 +196,7 @@ def _populate_split(h5_file, split_name, entries):
         compression="gzip"
     )
 
-def create_splits(h5_file, train_size=0.7, val_size=0.15, test_size=0.15, random_seed=42):
+def create_splits(h5_file, version, train_size=0.7, val_size=0.15, test_size=0.15, random_seed=42):
     """
     Create train/validation/test splits ensuring per-procedure constraints:
       - Procedures with 1 take: all to train
@@ -180,6 +205,7 @@ def create_splits(h5_file, train_size=0.7, val_size=0.15, test_size=0.15, random
 
     Args:
         h5_file: HDF5 file object
+        version: 'legacy' or 'hq'
         train_size: Proportion for training set
         val_size: Proportion for validation set
         test_size: Proportion for test set
@@ -187,14 +213,25 @@ def create_splits(h5_file, train_size=0.7, val_size=0.15, test_size=0.15, random
     """
     random.seed(random_seed)
 
-    # Gather takes per procedure
     proc_takes = defaultdict(list)
-    for surgery_type in h5_file["data"]:
-        for procedure_id in h5_file[f"data/{surgery_type}"]:
-            take_path = f"data/{surgery_type}/{procedure_id}/take"
-            if take_path in h5_file:
-                for take_id in h5_file[take_path]:
-                    proc_takes[(surgery_type, procedure_id)].append(take_id)
+    if version == "legacy":
+        for surgery_type in h5_file["data"]:
+            for procedure_id in h5_file[f"data/{surgery_type}"]:
+                take_path = f"data/{surgery_type}/{procedure_id}/take"
+                if take_path in h5_file:
+                    for take_id in h5_file[take_path]:
+                        proc_takes[(surgery_type, procedure_id)].append(take_id)
+    else:  # hq
+        for procedure in h5_file["procedures"]:
+            phases_grp = h5_file["procedures"][procedure].get("phases")
+            if phases_grp is None:
+                continue
+            for phase in phases_grp:
+                takes_grp = phases_grp[phase].get("takes")
+                if takes_grp is None:
+                    continue
+                for take_id in takes_grp:
+                    proc_takes[(procedure, int(phase))].append(int(take_id))
 
     train_subclips, val_subclips, test_subclips = [], [], []
 
@@ -247,13 +284,17 @@ def create_splits(h5_file, train_size=0.7, val_size=0.15, test_size=0.15, random
         for tid in test_ids:
             test_subclips.append((surgery_type, procedure_id, tid))
 
-    # Helper: expand takes to frame entries
+    def _frames_path(st, pid, tid):
+        if version == "legacy":
+            return f"data/{st}/{pid}/take/{tid}/frames/rgb"
+        return f"procedures/{st}/phases/{pid}/takes/{tid}/frames/rgb"
+
     def _populate_frames(subclips, out_list):
-        for surgery_type, procedure_id, take_id in subclips:
-            frames_key = f"data/{surgery_type}/{procedure_id}/take/{take_id}/frames/rgb"
+        for st, pid, tid in subclips:
+            frames_key = _frames_path(st, pid, tid)
             if frames_key in h5_file:
                 for fid in range(len(h5_file[frames_key])):
-                    out_list.append((surgery_type, procedure_id, take_id, fid))
+                    out_list.append((st, pid, tid, fid))
 
     # Build frame-level splits
     train_entries, val_entries, test_entries = [], [], []
@@ -281,95 +322,124 @@ def create_splits(h5_file, train_size=0.7, val_size=0.15, test_size=0.15, random
 def merge_files(input_files, splits_file, output_file):
     """
     Merge multiple HDF5 files into a single file.
-    
+
+    Supports both Legacy (data/...) and HQ (procedures/...) schemas.
+    Version is auto-detected from the first input file.
+
     Args:
         input_files: List of input file paths
+        splits_file: Path to splits HDF5 file (Legacy only; pass None for HQ)
         output_file: Output file path
     """
     # Ensure output directory exists
-    os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
+    out_dir = os.path.dirname(os.path.abspath(output_file))
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
 
-    # Create new output file
-    with h5py.File(output_file, 'w') as out_file:
-        # Initialize the base structure from the first file
+    # Detect version from first file and ensure all inputs match
+    version = detect_dataset_version(input_files[0])
+    logger.info(f"Detected dataset version: {version}")
+    for f in input_files[1:]:
+        v = detect_dataset_version(f)
+        if v != version:
+            raise ValueError(
+                f"All input files must use the same schema. {input_files[0]} is {version}, "
+                f"but {f} is {v}."
+            )
+
+    root_key = "data" if version == "legacy" else "procedures"
+
+    with h5py.File(output_file, "w") as out_file:
         logger.info(f"Initializing base structure from {input_files[0]}")
-        with h5py.File(input_files[0], 'r') as first_file:
-            # Copy metadata
-            copy_group(first_file, out_file, 'metadata')
-            
-            # Create empty splits group (will be populated later)
-            if create_splits:
-                if 'splits' not in out_file:
-                    out_file.create_group('splits')
-                
-            # Create empty clips group
-            if 'data' not in out_file:
-                out_file.create_group('data')
-        
-        # Copy all clips from each input file
+        with h5py.File(input_files[0], "r") as first_file:
+            copy_group(first_file, out_file, "metadata")
+            if root_key not in out_file:
+                out_file.create_group(root_key)
+
         all_entries = []
         for input_file in input_files:
             logger.info(f"Processing file: {input_file}")
-            with h5py.File(input_file, 'r') as in_file:
-                # Get all subclip frame entries
-                file_entries = get_take_frame_entries(in_file)
+            with h5py.File(input_file, "r") as in_file:
+                file_entries = get_take_frame_entries(in_file, version)
                 all_entries.extend(file_entries)
                 logger.info(f"Found {len(file_entries)} frame entries in {input_file}")
-                
-                # Copy all clips
-                if 'data' in in_file:
-                    for surgery_type in in_file['data']:
-                        # Create surgery type group if needed
-                        if surgery_type not in out_file['data']:
-                            out_file['data'].create_group(surgery_type)
-                            
-                        # Copy each clip
-                        for procedure_id in in_file[f'data/{surgery_type}']:
-                            procedure_path = f'data/{surgery_type}/{procedure_id}'
-                            
-                            # If clip doesn't exist in output, copy the entire clip
-                            if procedure_id not in out_file[f'data/{surgery_type}']:
-                                logger.info(f"Copying {procedure_path}")
-                                copy_group(in_file, out_file, procedure_path)
-                            else:
-                                # Clip exists, check individual subclips
-                                logger.info(f"Data {procedure_path} exists, checking for new take")
-                                takes_path = f'{procedure_path}/take'
-                                
-                                # Make sure the subclips folder exists in both input and output
-                                if takes_path in in_file and takes_path in out_file:
-                                    for take_id in in_file[takes_path]:
-                                        take_path = f'{takes_path}/{take_id}'
-                                        
-                                        # Copy subclip if it doesn't exist in output
-                                        if take_id not in out_file[takes_path]:
-                                            logger.info(f"Copying new subclip {take_path}")
-                                            copy_group(in_file, out_file, take_path)
-                                        else:
-                                            logger.warning(f"Skipping {take_path} - already exists in output file")
-                                elif takes_path in in_file:
-                                    # Subclips folder exists in input but not in output
-                                    logger.info(f"Adding subclips folder to {procedure_path}")
-                                    copy_group(in_file, out_file, takes_path)
-                                else:
-                                    logger.warning(f"No subclips found in {procedure_path}")
-        
-        # —— 3) Inject the supplied splits file ——
-        # if you want to create new splits you should call create_splits(h5_file=out_file, *args) and comment the below lines.
+
+                if root_key not in in_file:
+                    continue
+
+                if version == "legacy":
+                    _merge_legacy(in_file, out_file)
+                else:
+                    _merge_hq(in_file, out_file)
+
         if splits_file is not None:
             logger.info(f"Loading splits from {splits_file}")
-            with h5py.File(splits_file, 'r') as split_h5:
-                if 'splits' not in split_h5:
+            with h5py.File(splits_file, "r") as split_h5:
+                if "splits" not in split_h5:
                     logger.error("No 'splits' group found in your splits_file")
                     sys.exit(1)
-
-                # remove any placeholder
-                if 'splits' in out_file:
-                    del out_file['splits']
-                # copy the entire splits group
-                split_h5.copy('splits', out_file, name='splits')
+                if "splits" in out_file:
+                    del out_file["splits"]
+                split_h5.copy("splits", out_file, name="splits")
+        elif version == "hq":
+            logger.info("HQ mode: no splits file provided (splits are optional for HQ)")
 
         logger.info(f"Dataset merge complete! Saved to {output_file}")
+
+
+def _merge_legacy(in_file, out_file):
+    """Merge Legacy schema: data/{surgery_type}/{procedure_id}/take/{take_id}"""
+    for surgery_type in in_file["data"]:
+        if surgery_type not in out_file["data"]:
+            out_file["data"].create_group(surgery_type)
+        for procedure_id in in_file[f"data/{surgery_type}"]:
+            procedure_path = f"data/{surgery_type}/{procedure_id}"
+            if procedure_id not in out_file[f"data/{surgery_type}"]:
+                logger.info(f"Copying {procedure_path}")
+                copy_group(in_file, out_file, procedure_path)
+            else:
+                takes_path = f"{procedure_path}/take"
+                if takes_path in in_file and takes_path in out_file:
+                    for take_id in in_file[takes_path]:
+                        take_path = f"{takes_path}/{take_id}"
+                        if take_id not in out_file[takes_path]:
+                            logger.info(f"Copying new subclip {take_path}")
+                            copy_group(in_file, out_file, take_path)
+                        else:
+                            logger.warning(f"Skipping {take_path} - already exists in output file")
+                elif takes_path in in_file:
+                    copy_group(in_file, out_file, takes_path)
+                else:
+                    logger.warning(f"No subclips found in {procedure_path}")
+
+
+def _merge_hq(in_file, out_file):
+    """Merge HQ schema: procedures/{procedure}/phases/{phase}/takes/{take}"""
+    for procedure in in_file["procedures"]:
+        if procedure not in out_file["procedures"]:
+            out_file["procedures"].create_group(procedure)
+        proc_path = f"procedures/{procedure}"
+        phases_grp = in_file[proc_path].get("phases")
+        if phases_grp is None:
+            continue
+        if "phases" not in out_file[proc_path]:
+            out_file[proc_path].create_group("phases")
+        for phase in phases_grp:
+            phase_path = f"{proc_path}/phases/{phase}"
+            if phase not in out_file[proc_path]["phases"]:
+                out_file[proc_path]["phases"].create_group(phase)
+            takes_grp = in_file[phase_path].get("takes")
+            if takes_grp is None:
+                continue
+            if "takes" not in out_file[phase_path]:
+                out_file[phase_path].create_group("takes")
+            for take_id in takes_grp:
+                take_path = f"{phase_path}/takes/{take_id}"
+                if take_id not in out_file[phase_path]["takes"]:
+                    logger.info(f"Copying {take_path}")
+                    copy_group(in_file, out_file, take_path)
+                else:
+                    logger.warning(f"Skipping {take_path} - already exists in output file")
 
 def main():
     args = parse_args()
