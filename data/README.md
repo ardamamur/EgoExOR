@@ -68,11 +68,12 @@ visualize_take(
 ```
 
 ### 4. Merge into single HDF5
+`merge_files` supports both **Legacy** and **HQ** schemas (auto-detected). For HQ, `splits_file` is optional.
 ```python
 from data.utils.merge_h5 import merge_files
 merge_files(
-    input_files, # List of paths of individual HDF5 files
-    splits_file, # Path to splits.h5
+    input_files,   # List of paths of individual HDF5 files
+    splits_file,   # Path to splits.h5 (Legacy only; use None for HQ)
     output_file="EgoExOR.h5"
 )
 ```
