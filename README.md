@@ -14,7 +14,7 @@
 
 ## ✨ News ✨
 
-18 February 2025: **EgoExOR-HQ** — A new enriched version of the dataset is now available on [TUM/EgoExOR (Hugging Face)](https://huggingface.co/datasets/TUM/EgoExOR/tree/main). This release adds:
+18 February 2026: **EgoExOR-HQ** — A new enriched version of the dataset is now available on [TUM/EgoExOR (Hugging Face)](https://huggingface.co/datasets/TUM/EgoExOR/tree/main). This release adds:
 - High-quality images (1344×1344 instead of 336×336)
 - Raw depth images (instead of pre-merged point clouds)
 - Per-device audios
