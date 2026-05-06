@@ -151,9 +151,14 @@ Released under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-
 ## 📚 Citation
 
 ```bibtex
-@article{ozsoy2025egoexor,
-  title={Egoexor: An ego-exo-centric operating room dataset for surgical activity understanding},
-  author={{\"O}zsoy, Ege and Mamur, Arda and Tristram, Felix and Pellegrini, Chantal and Wysocki, Magdalena and Busam, Benjamin and Navab, Nassir},
-  journal={arXiv preprint arXiv:2505.24287},
-  year={2025}
+@inproceedings{NEURIPS2025_5e3ffa2c,
+  author = {\"{O}zsoy, Ege and Mamur, Arda and Tristram, Felix and Pellegrini, Chantal and Wysocki, Magdalena and Busam, Benjamin and Navab, Nassir},
+  booktitle = {Advances in Neural Information Processing Systems},
+  editor = {D. Belgrave and C. Zhang and H. Lin and R. Pascanu and P. Koniusz and M. Ghassemi and N. Chen},
+  pages = {},
+  publisher = {Curran Associates, Inc.},
+  title = {EgoExOR: An Ego-Exo-Centric  Operating Room Dataset for Surgical Activity Understanding},
+  url = {https://proceedings.neurips.cc/paper_files/paper/2025/file/5e3ffa2c53dce23986ca0f8d1d2bbc7e-Paper-Datasets_and_Benchmarks_Track.pdf},
+  volume = {38},
+  year = {2025}
 }
